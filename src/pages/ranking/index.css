@@ -1,0 +1,253 @@
+.ranking-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+/* Tab 栏 */
+.tab-bar {
+  display: flex;
+  background: white;
+  padding: 12px 16px;
+  gap: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 15px;
+  color: #666;
+  position: relative;
+}
+
+.tab.active {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  background: #1890ff;
+  border-radius: 2px;
+}
+
+/* 排行榜内容 */
+.rank-list {
+  height: calc(100vh - 100px);
+  padding: 16px;
+}
+
+/* 冠军卡片 */
+.champion-card {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 16px rgba(255, 179, 71, 0.3);
+}
+
+.champion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.champion-crown {
+  font-size: 28px;
+}
+
+.champion-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.champion-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.champion-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid white;
+  background: #f0f0f0;
+}
+
+.champion-info {
+  flex: 1;
+}
+
+.champion-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.champion-fish {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1890ff;
+  margin: 4px 0;
+}
+
+.champion-pond {
+  font-size: 13px;
+  color: #666;
+}
+
+/* 排名列表 */
+.rank-items {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.rank-item:last-child {
+  border-bottom: none;
+}
+
+.rank-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rank-number {
+  font-size: 18px;
+  width: 32px;
+  text-align: center;
+}
+
+.rank-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f0f0f0;
+}
+
+.rank-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.rank-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.rank-fish {
+  font-size: 13px;
+  color: #1890ff;
+  margin-top: 2px;
+}
+
+.rank-right {
+  text-align: right;
+}
+
+.rank-pond {
+  font-size: 12px;
+  color: #666;
+}
+
+.rank-time {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* 赛事入口 */
+.contest-banner {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.contest-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.contest-icon {
+  font-size: 36px;
+}
+
+.contest-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.contest-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+}
+
+.contest-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 2px;
+}
+
+.contest-arrow {
+  color: white;
+  font-size: 18px;
+}
+
+/* 鱼种分类 */
+.fish-type-grid {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.grid-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.fish-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fish-chip {
+  padding: 8px 14px;
+  background: #f5f5f5;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #333;
+}
+
+.safe-bottom {
+  height: 20px;
+}
