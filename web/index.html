@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>钓鱼脑 - Fishing Mind</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background: #f5f5f5; }
+    
+    /* Page Transitions */
+    .page { display: none; height: 100vh; overflow-y: auto; padding-bottom: 80px; }
+    .page.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Tab Bar */
+    .tab-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      display: flex;
+      padding: 8px 0;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: #999;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-item.active { color: #1890ff; }
+    .tab-item:active { transform: scale(0.95); }
+    .tab-icon { font-size: 22px; }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #001529 0%, #003a70 100%);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left { color: white; font-size: 14px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .header-search {
+      flex: 1;
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 8px 16px;
+      color: rgba(255,255,255,0.7);
+      font-size: 14px;
+      cursor: pointer;
+    }
+    
+    /* Back Header */
+    .back-header {
+      background: white;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .back-btn { font-size: 24px; cursor: pointer; padding: 4px; }
+    .back-title { flex: 1; font-size: 16px; font-weight: 600; text-align: center; }
+    
+    /* Feed Card */
+    .feed-card {
+      background: white;
+      border-radius: 16px;
+      margin: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .feed-card:active { transform: scale(0.98); opacity: 0.9; }
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 16px;
+      align-items: center;
+    }
+    .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: #f0f0f0; object-fit: cover;
+    }
+    .nickname { font-size: 15px; font-weight: 600; }
+    .level-tag {
+      font-size: 11px; color: #1890ff; background: rgba(24,144,255,0.1);
+      padding: 2px 8px; border-radius: 10px; margin-top: 2px; display: inline-block;
+    }
+    .feed-time { font-size: 12px; color: #999; }
+    .photo { width: 100%; height: 250px; object-fit: cover; background: #f0f0f0; cursor: pointer; }
+    .fish-info { padding: 12px 16px; cursor: pointer; }
+    .fish-main { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .fish-icon { font-size: 24px; }
+    .fish-species { font-size: 18px; font-weight: bold; }
+    .fish-weight { font-size: 20px; font-weight: bold; color: #1890ff; }
+    .location-info, .method-info { font-size: 13px; color: #666; margin-top: 4px; }
+    .action-bar {
+      display: flex; gap: 24px; padding: 12px 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .action-item { display: flex; align-items: center; gap: 6px; color: #666; cursor: pointer; user-select: none; }
+    .action-item.liked { color: #f5222d; }
+    .action-item:active { transform: scale(1.2); }
+    .fab-container { position: fixed; bottom: 90px; right: 20px; z-index: 999; }
+    .fab {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(24,144,255,0.4);
+      font-size: 28px; color: white; cursor: pointer;
+    }
+    .fab:active { transform: scale(0.9); }
+    
+    /* Ranking Page */
+    .tab-header {
+      display: flex; background: white; padding: 12px 16px; gap: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .tab-btn { flex: 1; text-align: center; padding: 8px 0; font-size: 15px; color: #666; cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active { color: #1890ff; font-weight: 600; }
+    .champion-card {
+      background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+      border-radius: 16px; padding: 20px; margin: 16px;
+      box-shadow: 0 4px 16px rgba(255,179,71,0.3);
+      cursor: pointer;
+    }
+    .champion-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .champion-crown { font-size: 28px; }
+    .champion-title { font-size: 18px; font-weight: bold; }
+    .champion-content { display: flex; align-items: center; gap: 16px; }
+    .champion-avatar { width: 64px; height: 64px; border-radius: 50%; border: 3px solid white; object-fit: cover; }
+    .champion-name { font-size: 18px; font-weight: bold; }
+    .champion-fish { font-size: 20px; font-weight: bold; color: #1890ff; margin: 4px 0; }
+    .champion-pond { font-size: 13px; color: #666; }
+    .rank-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: white; margin: 0 16px 8px; border-radius: 12px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .rank-item:active { transform: scale(0.98); }
+    .rank-left { display: flex; align-items: center; gap: 12px; }
+    .rank-number { font-size: 18px; width: 32px; text-align: center; }
+    .rank-avatar { width: 44px; height: 44px; border-radius: 50%; background: #f0f0f0; object-fit: cover; }
+    .rank-name { font-size: 15px; font-weight: 600; }
+    .rank-fish { font-size: 13px; color: #1890ff; margin-top: 2px; }
+    .rank-right { text-align: right; }
+    .rank-pond { font-size: 12px; color: #666; }
+    .rank-time { font-size: 11px; color: #999; margin-top: 2px; }
+    
+    /* Pond Page */
+    .search-bar { padding: 12px 16px; background: white; }
+    .search-input-wrap { display: flex; align-items: center; background: #f5f5f5; border-radius: 20px; padding: 8px 16px; }
+    .search-input { flex: 1; border: none; background: transparent; font-size: 14px; outline: none; }
+    .map-area { height: 180px; background: #e0e0e0; position: relative; }
+    .map-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+    .map-icon { font-size: 48px; }
+    .map-text { font-size: 16px; color: #666; }
+    .pond-card { background: white; border-radius: 12px; overflow: hidden; margin: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); cursor: pointer; transition: all 0.2s; }
+    .pond-card:active { transform: scale(0.98); }
+    .pond-cover { position: relative; height: 140px; }
+    .cover-img { width: 100%; height: 100%; object-fit: cover; background: #f0f0f0; }
+    .verified-badge { position: absolute; top: 10px; left: 10px; background: #1890ff; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; }
+    .fish-report-badge { position: absolute; top: 10px; right: 10px; background: #f5222d; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; }
+    .pond-info { padding: 14px; }
+    .pond-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .pond-name { font-size: 17px; font-weight: bold; }
+    .pond-rating { display: flex; align-items: center; gap: 2px; }
+    .reviews { font-size: 12px; color: #999; }
+    .pond-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+    .meta-item { font-size: 12px; color: #666; }
+    .fish-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .fish-tag { font-size: 11px; color: #1890ff; background: rgba(24,144,255,0.1); padding: 3px 8px; border-radius: 10px; }
+    .fish-report { background: #fff7e6; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    .report-content { font-size: 13px; color: #fa8c16; }
+    .pond-actions { display: flex; gap: 8px; }
+    .action-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px; background: #f5f5f5; border-radius: 6px; font-size: 12px; color: #666; cursor: pointer; }
+    .action-btn.primary { background: rgba(24,144,255,0.1); color: #1890ff; }
+    .owner-banner { background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%); border-radius: 12px; padding: 16px; margin: 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .owner-icon { font-size: 36px; }
+    .owner-title { font-size: 16px; font-weight: bold; color: white; }
+    .owner-desc { font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 2px; }
+    .owner-arrow { color: white; font-size: 18px; }
+    
+    /* Profile Page */
+    .profile-header { background: linear-gradient(135deg, #001529 0%, #003a70 100%); padding: 20px 16px 30px; }
+    .user-card { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+    .profile-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid white; background: #f0f0f0; object-fit: cover; cursor: pointer; }
+    .profile-name { font-size: 22px; font-weight: bold; color: white; display: flex; align-items: center; gap: 8px; }
+    .level-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; }
+    .level-text { font-size: 11px; color: white; }
+    .profile-city { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 4px; }
+    .styles-row { display: flex; gap: 6px; margin-top: 8px; }
+    .style-tag { font-size: 11px; color: white; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 10px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #f5f5f5; margin: -20px 16px 16px; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .stat-card { background: white; padding: 16px 8px; text-align: center; cursor: pointer; }
+    .stat-value { font-size: 20px; font-weight: bold; }
+    .stat-label { font-size: 11px; color: #999; margin-top: 4px; }
+    .section { background: white; margin: 0 16px 12px; border-radius: 12px; padding: 16px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .section-title { font-size: 16px; font-weight: 600; }
+    .section-more { font-size: 12px; color: #1890ff; cursor: pointer; }
+    .badges-grid { display: flex; gap: 12px; overflow-x: auto; }
+    .badge-item { display: flex; flex-direction: column; align-items: center; min-width: 60px; cursor: pointer; }
+    .badge-icon { font-size: 36px; margin-bottom: 4px; transition: transform 0.2s; }
+    .badge-item:active .badge-icon { transform: scale(1.2); }
+    .badge-item.locked .badge-icon { filter: grayscale(100%); opacity: 0.5; }
+    .badge-name { font-size: 11px; color: #666; }
+    .catch-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: #fafafa; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+    .catch-item:active { transform: scale(0.98); }
+    .catch-photo { width: 50px; height: 50px; border-radius: 8px; background: #f0f0f0; object-fit: cover; }
+    .catch-fish { font-size: 15px; font-weight: 600; }
+    .catch-weight { font-size: 16px; font-weight: bold; color: #1890ff; }
+    .catch-pond { font-size: 11px; color: #999; margin-top: 2px; }
+    .catch-time { font-size: 11px; color: #999; }
+    .menu-section { background: white; margin: 0 16px 12px; border-radius: 12px; overflow: hidden; }
+    .menu-item { display: flex; align-items: center; padding: 16px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: all 0.2s; }
+    .menu-item:active { background: #f5f5f5; }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-icon { font-size: 20px; margin-right: 12px; }
+    .menu-text { flex: 1; font-size: 15px; }
+    .menu-arrow { color: #ccc; }
+    
+    /* Detail Pages */
+    .detail-page { background: white; }
+    .detail-photo { width: 100%; height: 300px; object-fit: cover; background: #f0f0f0; }
+    .detail-content { padding: 16px; }
+    .detail-user { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .detail-user-avatar { width: 48px; height: 48px; border-radius: 50%; background: #f0f0f0; object-fit: cover; }
+    .detail-user-name { font-size: 16px; font-weight: 600; }
+    .detail-user-level { font-size: 12px; color: #1890ff; margin-top: 2px; }
+    .detail-fish-box { background: #f8f8f8; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .detail-fish-name { font-size: 24px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+    .detail-fish-weight { font-size: 32px; font-weight: bold; color: #1890ff; margin-top: 8px; }
+    .detail-meta { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .detail-meta-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #666; }
+    .detail-notes { background: #fff7e6; padding: 12px; border-radius: 8px; margin-top: 16px; font-size: 14px; color: #666; line-height: 1.6; }
+    
+    /* Pond Detail */
+    .pond-detail-cover { position: relative; height: 200px; }
+    .pond-detail-info { padding: 16px; }
+    .pond-detail-name { font-size: 22px; font-weight: bold; margin-bottom: 8px; }
+    .pond-detail-rating { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .pond-detail-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+    .pond-detail-meta-item { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #666; }
+    .pond-detail-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .pond-action-bar { display: flex; gap: 12px; margin-top: 16px; }
+    .pond-action-btn { flex: 1; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; font-size: 14px; }
+    .pond-action-btn.primary { background: #1890ff; color: white; }
+    .pond-action-btn.secondary { background: #f5f5f5; color: #333; }
+    
+    /* User Profile Detail */
+    .user-profile-header { background: linear-gradient(135deg, #001529 0%, #003a70 100%); padding: 20px 16px 40px; text-align: center; }
+    .user-profile-avatar { width: 100px; height: 100px; border-radius: 50%; border: 4px solid white; margin-bottom: 12px; object-fit: cover; }
+    .user-profile-name { font-size: 24px; font-weight: bold; color: white; }
+    .user-profile-level { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px; color: white; margin-top: 8px; }
+    .user-profile-stats { display: flex; justify-content: center; gap: 32px; margin-top: 20px; }
+    .user-profile-stat { text-align: center; }
+    .user-profile-stat-value { font-size: 20px; font-weight: bold; color: white; }
+    .user-profile-stat-label { font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px; }
+    
+    /* Publish Page */
+    .progress-bar { display: flex; align-items: center; justify-content: center; background: white; padding: 16px; margin: 16px; border-radius: 12px; }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .step-circle { width: 28px; height: 28px; border-radius: 50%; background: #e0e0e0; color: #999; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
+    .step.active .step-circle { background: #1890ff; color: white; }
+    .step-text { font-size: 11px; color: #999; }
+    .step.active .step-text { color: #1890ff; }
+    .step-line { width: 40px; height: 2px; background: #e0e0e0; margin: 0 8px; margin-bottom: 16px; }
+    .step-line.active { background: #1890ff; }
+    .step-content { background: white; margin: 0 16px; padding: 20px; border-radius: 12px; }
+    .photo-area { width: 100%; height: 300px; background: #f5f5f5; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 16px; cursor: pointer; transition: all 0.2s; }
+    .photo-area:active { transform: scale(0.98); }
+    .photo-preview { width: 100%; height: 300px; border-radius: 12px; overflow: hidden; margin-bottom: 16px; position: relative; }
+    .photo-preview-img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-change { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.5); padding: 12px; text-align: center; color: white; font-size: 14px; }
+    .btn-primary { width: 100%; background: #1890ff; color: white; border: none; border-radius: 8px; padding: 14px; font-size: 16px; cursor: pointer; }
+    .btn-default { width: 100%; background: #f5f5f5; color: #666; border: none; border-radius: 8px; padding: 14px; font-size: 16px; cursor: pointer; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 14px; font-weight: 500; margin-bottom: 8px; display: block; }
+    .form-input { width: 100%; padding: 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 16px; background: #fafafa; }
+    .form-textarea { width: 100%; padding: 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 16px; background: #fafafa; height: 100px; resize: none; }
+    .action-buttons { display: flex; gap: 12px; margin-top: 20px; }
+    .action-buttons button { flex: 1; }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 9999;
+      animation: toastIn 0.3s ease;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+  </style>
+</head>
+<body>
+  <!-- Tab Bar -->
+  <div class="tab-bar" id="tabBar">
+    <div class="tab-item active" data-page="home">
+      <span class="tab-icon">🏠</span>
+      <span>首页</span>
+    </div>
+    <div class="tab-item" data-page="ranking">
+      <span class="tab-icon">🏆</span>
+      <span>排行</span>
+    </div>
+    <div class="tab-item" data-page="publish">
+      <span class="tab-icon">➕</span>
+      <span>发布</span>
+    </div>
+    <div class="tab-item" data-page="pond">
+      <span class="tab-icon">🎣</span>
+      <span>鱼塘</span>
+    </div>
+    <div class="tab-item" data-page="profile">
+      <span class="tab-icon">👤</span>
+      <span>我的</span>
+    </div>
+  </div>
+
+  <!-- Home Page -->
+  <div id="page-home" class="page active">
+    <div class="header">
+      <div class="header-left">北京 ▼</div>
+      <div class="header-search">🔍 搜索鱼塘、钓友</div>
+    </div>
+    
+    <div id="feed-list">
+      <!-- Feed cards will be rendered here -->
+    </div>
+    
+    <div class="fab-container">
+      <div class="fab" onclick="switchTab('publish')">➕</div>
+    </div>
+  </div>
+
+  <!-- Ranking Page -->
+  <div id="page-ranking" class="page">
+    <div class="header">
+      <div style="color: white; font-size: 18px; font-weight: bold;">🏆 排行榜</div>
+    </div>
+    
+    <div class="tab-header">
+      <div class="tab-btn active" onclick="switchRankTab(this, 'city')">城市榜</div>
+      <div class="tab-btn" onclick="switchRankTab(this, 'fishType')">鱼种榜</div>
+      <div class="tab-btn" onclick="switchRankTab(this, 'weekly')">本周榜</div>
+    </div>
+    
+    <div class="champion-card" onclick="showToast('查看冠军详情')">
+      <div class="champion-header">
+        <span class="champion-crown">👑</span>
+        <span class="champion-title">本周冠军</span>
+      </div>
+      <div class="champion-content">
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=10" class="champion-avatar">
+        <div>
+          <div class="champion-name">李钓神</div>
+          <div class="champion-fish">🐟 黑鱼 18.5斤</div>
+          <div class="champion-pond">📍 黑坑王者钓场</div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="rank-list"></div>
+    
+    <div class="section" style="margin: 16px;">
+      <div class="section-header">
+        <span class="section-title">🏆 鱼种排行榜</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <span style="padding: 8px 14px; background: #f5f5f5; border-radius: 20px; font-size: 13px; cursor: pointer;">🐟 草鱼</span>
+        <span style="padding: 8px 14px; background: #f5f5f5; border-radius: 20px; font-size: 13px; cursor: pointer;">🐟 鲫鱼</span>
+        <span style="padding: 8px 14px; background: #f5f5f5; border-radius: 20px; font-size: 13px; cursor: pointer;">🐟 鲤鱼</span>
+        <span style="padding: 8px 14px; background: #f5f5f5; border-radius: 20px; font-size: 13px; cursor: pointer;">🐟 黑鱼</span>
+        <span style="padding: 8px 14px; background: #f5f5f5; border-radius: 20px; font-size: 13px; cursor: pointer;">🐟 鲢鳙</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish Page -->
+  <div id="page-publish" class="page">
+    <div class="back-header">
+      <div class="back-btn" onclick="switchTab('home')">←</div>
+      <div class="back-title">发布战绩</div>
+      <div style="width: 40px;"></div>
+    </div>
+    
+    <div class="progress-bar">
+      <div class="step active">
+        <div class="step-circle">1</div>
+        <span class="step-text">拍照</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-circle">2</div>
+        <span class="step-text">信息</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-circle">3</div>
+        <span class="step-text">钓点</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-circle">4</div>
+        <span class="step-text">发布</span>
+      </div>
+    </div>
+    
+    <div class="step-content">
+      <div class="photo-area" onclick="showToast('选择照片功能')">
+        <span class="photo-icon">📷</span>
+        <span class="photo-text">点击拍照或从相册选择</span>
+        <span style="font-size: 12px; color: #999; margin-top: 8px;">最多3张照片</span>
+      </div>
+      <button class="btn-primary" onclick="showToast('选择照片功能')">选择照片</button>
+    </div>
+  </div>
+
+  <!-- Pond Page -->
+  <div id="page-pond" class="page">
+    <div class="header">
+      <div style="color: white; font-size: 18px; font-weight: bold;">🎣 发现鱼塘</div>
+    </div>
+    
+    <div class="search-bar">
+      <div class="search-input-wrap">
+        <span>🔍</span>
+        <input type="text" class="search-input" placeholder="搜索鱼塘">
+      </div>
+    </div>
+    
+    <div class="map-area">
+      <div class="map-placeholder">
+        <span class="map-icon">🗺️</span>
+        <span class="map-text">鱼塘地图</span>
+      </div>
+    </div>
+    
+    <div id="pond-list"></div>
+    
+    <div class="owner-banner" onclick="showToast('鱼塘入驻功能')">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="owner-icon">🎣</span>
+        <div>
+          <div class="owner-title">我是鱼塘老板</div>
+          <div class="owner-desc">入驻平台，获取更多客户</div>
+        </div>
+      </div>
+      <span class="owner-arrow">></span>
+    </div>
+  </div>
+
+  <!-- Profile Page -->
+  <div id="page-profile" class="page">
+    <div class="profile-header">
+      <div class="user-card">
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=user1" class="profile-avatar" onclick="showUserProfile('user1')">
+        <div style="flex: 1;">
+          <div class="profile-name">
+            钓鱼达人
+            <span class="level-badge">🎖️ <span class="level-text">钓场老炮</span></span>
+          </div>
+          <div class="profile-city">📍 北京</div>
+          <div class="styles-row">
+            <span class="style-tag">台钓</span>
+            <span class="style-tag">路亚</span>
+          </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 16px; font-size: 12px; color: white; cursor: pointer;">✏️</div>
+      </div>
+    </div>
+    
+    <div class="stats-grid">
+      <div class="stat-card" onclick="showToast('查看钓鱼数据')">
+        <div class="stat-value">128</div>
+        <div class="stat-label">总钓次数</div>
+      </div>
+      <div class="stat-card" onclick="showToast('查看最重渔获')">
+        <div class="stat-value">18.5</div>
+        <div class="stat-label">最重(斤)</div>
+      </div>
+      <div class="stat-card" onclick="showToast('查看粉丝')">
+        <div class="stat-value">256</div>
+        <div class="stat-label">粉丝</div>
+      </div>
+      <div class="stat-card" onclick="showToast('查看关注')">
+        <div class="stat-value">89</div>
+        <div class="stat-label">关注</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">🏆 徽章墙</span>
+        <span class="section-more" onclick="showToast('查看全部徽章')">查看全部 ></span>
+      </div>
+      <div class="badges-grid">
+        <div class="badge-item" onclick="showToast('首钓徽章')"><span class="badge-icon">🎣</span><span class="badge-name">首钓</span></div>
+        <div class="badge-item" onclick="showToast('10斤+徽章')"><span class="badge-icon">🦈</span><span class="badge-name">10斤+</span></div>
+        <div class="badge-item" onclick="showToast('百钓达人徽章')"><span class="badge-icon">🏅</span><span class="badge-name">百钓达人</span></div>
+        <div class="badge-item locked" onclick="showToast('鱼王徽章未解锁')"><span class="badge-icon">👑</span><span class="badge-name">鱼王</span></div>
+        <div class="badge-item locked" onclick="showToast('封神徽章未解锁')"><span class="badge-icon">🌟</span><span class="badge-name">封神</span></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">📸 最近战绩</span>
+        <span class="section-more" onclick="showToast('查看全部战绩')">查看全部 ></span>
+      </div>
+      <div id="profile-catches"></div>
+    </div>
+    
+    <div class="menu-section">
+      <div class="menu-item" onclick="showToast('数据报告')"><span class="menu-icon">📊</span><span class="menu-text">数据报告</span><span class="menu-arrow">></span></div>
+      <div class="menu-item" onclick="showToast('收藏的鱼塘')"><span class="menu-icon">⭐</span><span class="menu-text">收藏的鱼塘</span><span class="menu-arrow">></span></div>
+      <div class="menu-item" onclick="showToast('我的车队')"><span class="menu-icon">👥</span><span class="menu-text">我的车队</span><span class="menu-arrow">></span></div>
+      <div class="menu-item" onclick="showToast('参加的赛事')"><span class="menu-icon">🎫</span><span class="menu-text">参加的赛事</span><span class="menu-arrow">></span></div>
+      <div class="menu-item" onclick="showToast('会员中心')"><span class="menu-icon">💎</span><span class="menu-text">会员中心</span><span class="menu-arrow">></span></div>
+      <div class="menu-item" onclick="showToast('设置')"><span class="menu-icon">⚙️</span><span class="menu-text">设置</span><span class="menu-arrow">></span></div>
+    </div>
+  </div>
+
+  <!-- Catch Detail Page (Hidden by default) -->
+  <div id="page-catch-detail" class="page">
+    <div class="back-header">
+      <div class="back-btn" onclick="goBack()">←</div>
+      <div class="back-title">战绩详情</div>
+      <div style="width: 40px;"></div>
+    </div>
+    <div id="catch-detail-content"></div>
+  </div>
+
+  <!-- Pond Detail Page (Hidden by default) -->
+  <div id="page-pond-detail" class="page">
+    <div class="back-header">
+      <div class="back-btn" onclick="goBack()">←</div>
+      <div class="back-title">鱼塘详情</div>
+      <div style="width: 40px;"></div>
+    </div>
+    <div id="pond-detail-content"></div>
+  </div>
+
+  <!-- User Profile Detail Page (Hidden by default) -->
+  <div id="page-user-detail" class="page">
+    <div class="back-header">
+      <div class="back-btn" onclick="goBack()">←</div>
+      <div class="back-title">个人主页</div>
+      <div style="width: 40px;"></div>
+    </div>
+    <div id="user-detail-content"></div>
+  </div>
+
+  <script>
+    // Data
+    const mockFeed = [
+      { id: 1, user: { id: 'u1', nickname: '张大钓', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1', level: '钓场老炮' }, fish: { species: '草鱼', weight: 12.3, unit: '斤' }, location: { name: '龙泉黑坑', id: 'p1', distance: '3.2km' }, photos: ['https://picsum.photos/400/300?random=1'], bait: '老鬼918', method: '台钓', time: '3小时前', likes: 34, comments: 8, isLiked: false, notes: '今天运气不错，鱼口很猛！' },
+      { id: 2, user: { id: 'u2', nickname: '李钓神', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2', level: '黑坑传说' }, fish: { species: '黑鱼', weight: 18.5, unit: '斤' }, location: { name: '黑坑王者钓场', id: 'p2', distance: '5.1km' }, photos: ['https://picsum.photos/400/300?random=2'], bait: '路亚假饵', method: '路亚', time: '2天前', likes: 89, comments: 23, isLiked: true, notes: '终于破纪录了！' },
+      { id: 3, user: { id: 'u3', nickname: '王小竿', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3', level: '江湖钓手' }, fish: { species: '鲈鱼', weight: 5.6, unit: '斤' }, location: { name: '野钓-苏州河', id: null, distance: '未知' }, photos: ['https://picsum.photos/400/300?random=3'], bait: '软虫', method: '路亚', time: '5小时前', likes: 12, comments: 3, isLiked: false, notes: '' },
+    ];
+
+    const mockPonds = [
+      { id: 'p1', name: '龙泉黑坑', rating: 4.8, reviews: 236, distance: '3.2km', price: '计重40元/斤', fishTypes: ['草鱼', '鲤鱼', '鲫鱼'], openHours: '06:00-22:00', isVerified: true, hasFishReport: true, reportText: '今日补放草鱼200斤，鲤鱼100斤', photo: 'https://picsum.photos/400/200?random=101' },
+      { id: 'p2', name: '黑坑王者钓场', rating: 4.6, reviews: 189, distance: '5.1km', price: '包天200元', fishTypes: ['黑鱼', '鲈鱼', '翘嘴'], openHours: '05:00-21:00', isVerified: true, hasFishReport: true, reportText: '黑鱼开口，路亚首选！', photo: 'https://picsum.photos/400/200?random=102' },
+      { id: 'p3', name: '顺义鱼塘', rating: 4.3, reviews: 87, distance: '12km', price: '计重30元/斤', fishTypes: ['青鱼', '草鱼'], openHours: '07:00-18:00', isVerified: true, hasFishReport: false, photo: 'https://picsum.photos/400/200?random=103' },
+    ];
+
+    const mockRankings = [
+      { rank: 1, medal: '🥇', user: { id: 'u1', nickname: '张大钓', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=11' }, fish: { species: '草鱼', weight: 15.2, unit: '斤' }, pond: '龙泉黑坑', time: '3天前' },
+      { rank: 2, medal: '🥈', user: { id: 'u2', nickname: '王老竿', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=12' }, fish: { species: '青鱼', weight: 12.8, unit: '斤' }, pond: '顺义鱼塘', time: '1周前' },
+      { rank: 3, medal: '🥉', user: { id: 'u3', nickname: '赵小钓', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=13' }, fish: { species: '鲤鱼', weight: 11.3, unit: '斤' }, pond: '通州渔场', time: '5天前' },
+      { rank: 4, medal: '4', user: { id: 'u4', nickname: '钱塘钓手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=14' }, fish: { species: '鲢鳙', weight: 10.5, unit: '斤' }, pond: '野钓-白洋淀', time: '2周前' },
+    ];
+
+    const pageStack = ['home'];
+    let currentLikes = {};
+
+    // Initialize
+    function init() {
+      renderFeed();
+      renderPondList();
+      renderRankList();
+      renderProfileCatches();
+      
+      // Setup tab bar
+      document.querySelectorAll('.tab-item').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.page));
+      });
+    }
+
+    // Render Feed
+    function renderFeed() {
+      const container = document.getElementById('feed-list');
+      container.innerHTML = mockFeed.map(item => `
+        <div class="feed-card" onclick="showCatchDetail(${item.id})">
+          <div class="feed-header">
+            <div class="user-info" onclick="event.stopPropagation(); showUserProfile('${item.user.id}')">
+              <img src="${item.user.avatar}" class="avatar">
+              <div>
+                <div class="nickname">${item.user.nickname}</div>
+                <span class="level-tag">${item.user.level}</span>
+              </div>
+            </div>
+            <div class="feed-time">${item.time}</div>
+          </div>
+          <img src="${item.photos[0]}" class="photo" onclick="event.stopPropagation(); showToast('查看照片')">
+          <div class="fish-info" onclick="event.stopPropagation(); showCatchDetail(${item.id})">
+            <div class="fish-main">
+              <span class="fish-icon">🐟</span>
+              <span class="fish-species">${item.fish.species}</span>
+              <span class="fish-weight">${item.fish.weight}${item.fish.unit}</span>
+            </div>
+            <div class="location-info" onclick="event.stopPropagation(); showPondDetail('${item.location.id}')">📍 ${item.location.name}${item.location.distance !== '未知' ? ' · ' + item.location.distance : ''}</div>
+            <div class="method-info">🎣 ${item.method}${item.bait ? ' · ' + item.bait : ''}</div>
+          </div>
+          <div class="action-bar">
+            <div class="action-item ${currentLikes[item.id] ? 'liked' : ''}" onclick="event.stopPropagation(); toggleLike(${item.id})">
+              ${currentLikes[item.id] ? '❤️' : '🤍'} <span>${item.likes + (currentLikes[item.id] ? 1 : 0)}</span>
+            </div>
+            <div class="action-item" onclick="event.stopPropagation(); showToast('评论功能')">💬 <span>${item.comments}</span></div>
+            <div class="action-item" onclick="event.stopPropagation(); showToast('分享功能')">↗️ 分享</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Pond List
+    function renderPondList() {
+      const container = document.getElementById('pond-list');
+      container.innerHTML = `
+        <div style="padding: 12px 16px; font-size: 14px; color: #666;">附近鱼塘 (${mockPonds.length})</div>
+        ${mockPonds.map(pond => `
+          <div class="pond-card" onclick="showPondDetail('${pond.id}')">
+            <div class="pond-cover">
+              <img src="${pond.photo}" class="cover-img">
+              ${pond.isVerified ? '<span class="verified-badge">✓ 认证</span>' : ''}
+              ${pond.hasFishReport ? '<span class="fish-report-badge">🔥 有鱼情</span>' : ''}
+            </div>
+            <div class="pond-info">
+              <div class="pond-header">
+                <span class="pond-name">${pond.name}</span>
+                <div class="pond-rating">⭐ <b>${pond.rating}</b> <span class="reviews">(${pond.reviews})</span></div>
+              </div>
+              <div class="pond-meta">
+                <span class="meta-item">📍 ${pond.distance}</span>
+                <span class="meta-item">💰 ${pond.price}</span>
+                <span class="meta-item">⏰ ${pond.openHours}</span>
+              </div>
+              <div class="fish-tags">
+                ${pond.fishTypes.map(fish => `<span class="fish-tag">🐟 ${fish}</span>`).join('')}
+              </div>
+              ${pond.hasFishReport ? `<div class="fish-report">📢 ${pond.reportText}</div>` : ''}
+              <div class="pond-actions">
+                <div class="action-btn primary" onclick="event.stopPropagation(); showToast('拨打电话')">📞</div>
+                <div class="action-btn" onclick="event.stopPropagation(); showToast('导航功能')">🗺️</div>
+                <div class="action-btn" onclick="event.stopPropagation(); showToast('收藏功能')">⭐</div>
+                <div class="action-btn" onclick="event.stopPropagation(); showToast('分享功能')">↗️</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    // Render Rank List
+    function renderRankList() {
+      const container = document.getElementById('rank-list');
+      container.innerHTML = mockRankings.map(item => `
+        <div class="rank-item" onclick="showUserProfile('${item.user.id}')">
+          <div class="rank-left">
+            <span class="rank-number">${item.medal}</span>
+            <img src="${item.user.avatar}" class="rank-avatar">
+            <div>
+              <div class="rank-name">${item.user.nickname}</div>
+              <div class="rank-fish">${item.fish.species} · ${item.fish.weight}${item.fish.unit}</div>
+            </div>
+          </div>
+          <div class="rank-right">
+            <div class="rank-pond">${item.pond}</div>
+            <div class="rank-time">${item.time}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Profile Catches
+    function renderProfileCatches() {
+      const container = document.getElementById('profile-catches');
+      const catches = [
+        { id: 2, fish: '黑鱼', weight: 12.5, unit: '斤', pond: '黑坑王者钓场', time: '2天前', photo: 'https://picsum.photos/200/200?random=51' },
+        { id: 1, fish: '草鱼', weight: 8.3, unit: '斤', pond: '龙泉黑坑', time: '5天前', photo: 'https://picsum.photos/200/200?random=52' },
+        { id: 3, fish: '鲈鱼', weight: 3.2, unit: '斤', pond: '野钓-苏州河', time: '1周前', photo: 'https://picsum.photos/200/200?random=53' },
+      ];
+      container.innerHTML = catches.map(c => `
+        <div class="catch-item" onclick="showCatchDetail(${c.id})">
+          <img src="${c.photo}" class="catch-photo">
+          <div style="flex: 1;">
+            <div class="catch-fish">🐟 ${c.fish}</div>
+            <div class="catch-weight">${c.weight}${c.unit}</div>
+            <div class="catch-pond">📍 ${c.pond}</div>
+          </div>
+          <div class="catch-time">${c.time}</div>
+        </div>
+      `).join('');
+    }
+
+    // Toggle Like
+    function toggleLike(id) {
+      currentLikes[id] = !currentLikes[id];
+      renderFeed();
+    }
+
+    // Switch Tab
+    function switchTab(page) {
+      // Hide tab bar on detail pages
+      const tabBar = document.getElementById('tabBar');
+      tabBar.style.display = ['catch-detail', 'pond-detail', 'user-detail'].includes(page) ? 'none' : 'flex';
+      
+      // Update tab bar
+      if (!['catch-detail', 'pond-detail', 'user-detail'].includes(page)) {
+        document.querySelectorAll('.tab-item').forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.page === page);
+        });
+      }
+      
+      // Hide all pages
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      
+      // Show target page
+      document.getElementById('page-' + page).classList.add('active');
+      
+      // Track stack
+      if (page !== 'catch-detail' && page !== 'pond-detail' && page !== 'user-detail') {
+        pageStack.length = 0;
+        pageStack.push(page);
+      }
+    }
+
+    // Show Catch Detail
+    function showCatchDetail(id) {
+      const catchData = mockFeed.find(f => f.id === id) || mockFeed[0];
+      const content = document.getElementById('catch-detail-content');
+      content.innerHTML = `
+        <img src="${catchData.photos[0]}" class="detail-photo">
+        <div class="detail-content">
+          <div class="detail-user" onclick="showUserProfile('${catchData.user.id}')">
+            <img src="${catchData.user.avatar}" class="detail-user-avatar">
+            <div>
+              <div class="detail-user-name">${catchData.user.nickname}</div>
+              <div class="detail-user-level">${catchData.user.level}</div>
+            </div>
+          </div>
+          
+          <div class="detail-fish-box">
+            <div class="detail-fish-name">🐟 ${catchData.fish.species}</div>
+            <div class="detail-fish-weight">${catchData.fish.weight} ${catchData.fish.unit}</div>
+          </div>
+          
+          <div class="detail-meta">
+            <div class="detail-meta-item">📍 ${catchData.location.name}</div>
+            <div class="detail-meta-item">🎣 ${catchData.method}</div>
+            ${catchData.bait ? `<div class="detail-meta-item">🪤 ${catchData.bait}</div>` : ''}
+            <div class="detail-meta-item">⏰ ${catchData.time}</div>
+          </div>
+          
+          ${catchData.notes ? `<div class="detail-notes">💬 ${catchData.notes}</div>` : ''}
+          
+          <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <div class="action-item" style="flex: 1; justify-content: center; padding: 12px; background: #f5f5f5; border-radius: 8px;">
+              🤍 点赞 ${catchData.likes}
+            </div>
+            <div class="action-item" style="flex: 1; justify-content: center; padding: 12px; background: #f5f5f5; border-radius: 8px;">
+              💬 评论 ${catchData.comments}
+            </div>
+          </div>
+        </div>
+      `;
+      pageStack.push('catch-detail');
+      switchTab('catch-detail');
+    }
+
+    // Show Pond Detail
+    function showPondDetail(id) {
+      const pond = mockPonds.find(p => p.id === id) || mockPonds[0];
+      const content = document.getElementById('pond-detail-content');
+      content.innerHTML = `
+        <div class="pond-detail-cover">
+          <img src="${pond.photo}" class="detail-photo" style="height: 200px;">
+        </div>
+        <div class="pond-detail-info">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+            <div class="pond-detail-name">${pond.name}</div>
+            ${pond.isVerified ? '<span style="background: #1890ff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">✓ 认证</span>' : ''}
+          </div>
+          
+          <div class="pond-detail-rating">
+            <span style="font-size: 18px;">⭐</span>
+            <span style="font-size: 18px; font-weight: bold;">${pond.rating}</span>
+            <span style="color: #999;">(${pond.reviews}条评价)</span>
+          </div>
+          
+          <div class="pond-detail-meta">
+            <div class="pond-detail-meta-item">📍 ${pond.distance}</div>
+            <div class="pond-detail-meta-item">💰 ${pond.price}</div>
+            <div class="pond-detail-meta-item">⏰ ${pond.openHours}</div>
+            <div class="pond-detail-meta-item">📞</div>
+          </div>
+          
+          <div class="pond-detail-tags">
+            ${pond.fishTypes.map(fish => `<span class="fish-tag">🐟 ${fish}</span>`).join('')}
+          </div>
+          
+          ${pond.hasFishReport ? `
+            <div style="background: #fff7e6; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">📢 今日鱼情</div>
+              <div style="font-size: 13px; color: #fa8c16;">${pond.reportText}</div>
+            </div>
+          ` : ''}
+          
+          <div class="pond-action-bar">
+            <div class="pond-action-btn primary" onclick="showToast('拨打电话')">📞 电话</div>
+            <div class="pond-action-btn secondary" onclick="showToast('导航功能')">🗺️ 导航</div>
+            <div class="pond-action-btn secondary" onclick="showToast('收藏功能')">⭐ 收藏</div>
+          </div>
+        </div>
+      `;
+      pageStack.push('pond-detail');
+      switchTab('pond-detail');
+    }
+
+    // Show User Profile
+    function showUserProfile(id) {
+      const user = { nickname: '钓鱼达人', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user1', level: '钓场老炮', city: '北京', stats: { catches: 128, maxWeight: 18.5, followers: 256, following: 89 } };
+      const content = document.getElementById('user-detail-content');
+      content.innerHTML = `
+        <div class="user-profile-header">
+          <img src="${user.avatar}" class="user-profile-avatar">
+          <div class="user-profile-name">${user.nickname}</div>
+          <div class="user-profile-level">🎖️ ${user.level}</div>
+          <div style="color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 4px;">📍 ${user.city}</div>
+          <div class="user-profile-stats">
+            <div class="user-profile-stat">
+              <div class="user-profile-stat-value">${user.stats.catches}</div>
+              <div class="user-profile-stat-label">钓鱼</div>
+            </div>
+            <div class="user-profile-stat">
+              <div class="user-profile-stat-value">${user.stats.followers}</div>
+              <div class="user-profile-stat-label">粉丝</div>
+            </div>
+            <div class="user-profile-stat">
+              <div class="user-profile-stat-value">${user.stats.following}</div>
+              <div class="user-profile-stat-label">关注</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section" style="margin-top: 16px;">
+          <div class="section-header">
+            <span class="section-title">📸 最近战绩</span>
+          </div>
+          ${mockFeed.slice(0, 3).map(item => `
+            <div class="catch-item" onclick="showCatchDetail(${item.id})">
+              <img src="${item.photos[0]}" class="catch-photo">
+              <div style="flex: 1;">
+                <div class="catch-fish">🐟 ${item.fish.species}</div>
+                <div class="catch-weight">${item.fish.weight}${item.fish.unit}</div>
+                <div class="catch-pond">📍 ${item.location.name}</div>
+              </div>
+              <div class="catch-time">${item.time}</div>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div style="padding: 16px;">
+          <div style="display: flex; gap: 12px;">
+            <div style="flex: 1; padding: 12px; background: #1890ff; color: white; border-radius: 8px; text-align: center; cursor: pointer;" onclick="showToast('关注功能')">+ 关注</div>
+            <div style="flex: 1; padding: 12px; background: #f5f5f5; border-radius: 8px; text-align: center; cursor: pointer;" onclick="showToast('私信功能')">💬 私信</div>
+          </div>
+        </div>
+      `;
+      pageStack.push('user-detail');
+      switchTab('user-detail');
+    }
+
+    // Go Back
+    function goBack() {
+      pageStack.pop();
+      const prevPage = pageStack[pageStack.length - 1] || 'home';
+      switchTab(prevPage);
+    }
+
+    // Switch Rank Tab
+    function switchRankTab(btn, type) {
+      document.querySelectorAll('.tab-header .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      showToast('切换到' + type);
+    }
+
+    // Show Toast
+    function showToast(message) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.remove(), 2000);
+    }
+
+    // Init
+    init();
+  </script>
+</body>
+</html>
