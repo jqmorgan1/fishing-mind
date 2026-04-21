@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>钓鱼脑 - 实时地图</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background: #f5f5f5; overflow: hidden; }
+    
+    /* Map Container */
+    .map-container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    
+    /* Weather Bar */
+    .weather-bar {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: linear-gradient(135deg, #4A90D9 0%, #357ABD 100%);
+      border-radius: 20px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      color: white;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .weather-item { display: flex; align-items: center; gap: 4px; }
+    .weather-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.4); }
+    .fishing-index { color: #FFD700; font-weight: bold; }
+    
+    /* Real-time Panel (Top Right) */
+    .realtime-panel {
+      position: absolute;
+      top: 60px;
+      right: 12px;
+      z-index: 100;
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      width: 180px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .realtime-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .realtime-dot {
+      width: 8px;
+      height: 8px;
+      background: #52c41a;
+      border-radius: 50%;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .realtime-item {
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .realtime-item:last-child { border-bottom: none; }
+    .realtime-item:active { background: #f5f5f5; }
+    .realtime-icon { font-size: 14px; }
+    .realtime-text { color: #333; flex: 1; }
+    .realtime-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .tag-fish { background: rgba(24,144,255,0.1); color: #1890ff; }
+    .tag-contest { background: rgba(127,119,221,0.1); color: #7F77DD; }
+    .tag-report { background: rgba(29,158,117,0.1); color: #1D9E75; }
+    
+    /* Search Bar */
+    .search-bar {
+      position: absolute;
+      top: 110px;
+      left: 12px;
+      right: 12px;
+      z-index: 100;
+      display: flex;
+      gap: 8px;
+    }
+    .search-input-wrap {
+      flex: 1;
+      background: white;
+      border-radius: 24px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 14px;
+    }
+    .locate-btn {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    
+    /* Filter Tags */
+    .filter-tags {
+      position: absolute;
+      top: 165px;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 0 12px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .filter-tags::-webkit-scrollbar { display: none; }
+    .filter-tags-inner {
+      display: inline-flex;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .filter-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      background: white;
+      border-radius: 16px;
+      font-size: 13px;
+      color: #666;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-tag.active {
+      background: #1890ff;
+      color: white;
+    }
+    .filter-tag:active { transform: scale(0.95); }
+    
+    /* Map Area */
+    .map-area {
+      flex: 1;
+      position: relative;
+      background: #e8e8e8;
+    }
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .map-icon { font-size: 80px; }
+    .map-text { font-size: 24px; font-weight: bold; color: #333; }
+    .map-hint { font-size: 14px; color: #999; }
+    
+    /* Markers on Map */
+    .marker {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .marker:active { transform: scale(1.2); }
+    .marker-icon {
+      width: 36px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .marker-label {
+      background: white;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      margin-top: -8px;
+      white-space: nowrap;
+    }
+    .marker-label.hot { color: #E24B4A; }
+    .marker-label.contest { color: #7F77DD; }
+    .marker-label.fresh { color: #1D9E75; }
+    .marker-label.normal { color: #378ADD; }
+    .marker-label.wild { color: #5DCAA5; }
+    
+    /* Heatmap Overlay */
+    .heatmap-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+    }
+    .heat-spot {
+      position: absolute;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    /* Real-time Fish Toast */
+    .fish-toast {
+      position: absolute;
+      bottom: 200px;
+      left: 12px;
+      z-index: 99;
+      background: white;
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      max-width: 280px;
+      animation: slideUp 0.4s ease, fadeOut 0.4s ease 3.6s forwards;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+    .toast-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .toast-fish {
+      font-size: 16px;
+      font-weight: bold;
+      color: #1890ff;
+    }
+    .toast-pond {
+      font-size: 12px;
+      color: #999;
+      margin-top: 2px;
+    }
+    
+    /* Add Wild Point Button */
+    .add-wild-btn {
+      position: absolute;
+      bottom: 200px;
+      right: 12px;
+      z-index: 99;
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(82,196,26,0.4);
+      cursor: pointer;
+    }
+    .add-wild-btn:active { transform: scale(0.9); }
+    
+    /* Bottom Sheet */
+    .bottom-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      z-index: 101;
+      transition: height 0.3s ease;
+      height: 200px;
+      overflow: hidden;
+    }
+    .sheet-expanded { height: 60vh !important; }
+    
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: #ddd;
+      border-radius: 2px;
+      margin: 12px auto;
+      cursor: pointer;
+    }
+    
+    .sheet-tabs {
+      display: flex;
+      padding: 0 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .sheet-tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px 0;
+      font-size: 14px;
+      color: #999;
+      cursor: pointer;
+      position: relative;
+    }
+    .sheet-tab.active {
+      color: #1890ff;
+      font-weight: 600;
+    }
+    .sheet-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 3px;
+      background: #1890ff;
+      border-radius: 2px;
+    }
+    
+    .sheet-content {
+      height: calc(100% - 80px);
+      overflow-y: auto;
+      padding: 12px 16px;
+    }
+    
+    /* Pond Card in Sheet */
+    .sheet-pond-card {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .sheet-pond-card:active { transform: scale(0.98); }
+    .sheet-pond-card.selected {
+      background: rgba(24,144,255,0.1);
+      border: 1px solid #1890ff;
+    }
+    .sheet-pond-img {
+      width: 70px;
+      height: 70px;
+      border-radius: 8px;
+      background: #e0e0e0;
+      object-fit: cover;
+    }
+    .sheet-pond-info { flex: 1; }
+    .sheet-pond-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .sheet-pond-meta { font-size: 12px; color: #666; margin-bottom: 4px; }
+    .sheet-pond-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .sheet-pond-tag { font-size: 10px; padding: 2px 6px; background: rgba(24,144,255,0.1); color: #1890ff; border-radius: 4px; }
+    .sheet-pond-status {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .status-hot { background: rgba(226,75,74,0.1); color: #E24B4A; }
+    .status-fresh { background: rgba(29,158,117,0.1); color: #1D9E75; }
+    .status-contest { background: rgba(127,119,221,0.1); color: #7F77DD; }
+    
+    /* Ranking Item */
+    .rank-list-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    .rank-medal { font-size: 24px; width: 32px; text-align: center; }
+    .rank-avatar { width: 44px; height: 44px; border-radius: 50%; background: #e0e0e0; }
+    .rank-info { flex: 1; }
+    .rank-name { font-size: 14px; font-weight: 600; }
+    .rank-fish { font-size: 13px; color: #1890ff; margin-top: 2px; }
+    .rank-pond { font-size: 11px; color: #999; margin-top: 2px; }
+    
+    /* Contest Item */
+    .contest-item {
+      padding: 12px;
+      background: linear-gradient(135deg, #7F77DD 0%, #5D54AE 100%);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      color: white;
+    }
+    .contest-title { font-size: 15px; font-weight: bold; margin-bottom: 6px; }
+    .contest-meta { font-size: 12px; opacity: 0.9; margin-bottom: 8px; }
+    .contest-progress {
+      background: rgba(255,255,255,0.3);
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .contest-progress-bar { height: 100%; background: white; border-radius: 3px; }
+    .contest-time-left { font-size: 11px; opacity: 0.8; margin-top: 4px; text-align: right; }
+    .contest-signup {
+      margin-top: 8px;
+      padding: 8px 16px;
+      background: white;
+      color: #7F77DD;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+    }
+    
+    /* Pond Detail Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .modal-overlay.active { display: flex; align-items: flex-end; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .pond-detail-modal {
+      background: white;
+      width: 100%;
+      max-height: 85vh;
+      border-radius: 20px 20px 0 0;
+      overflow: hidden;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    
+    .modal-handle {
+      width: 40px;
+      height: 4px;
+      background: #ddd;
+      border-radius: 2px;
+      margin: 12px auto;
+    }
+    
+    .pond-detail-cover {
+      width: 100%;
+      height: 200px;
+      background: #e0e0e0;
+      position: relative;
+    }
+    .pond-detail-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .pond-cover-badges {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+    }
+    .cover-badge {
+      padding: 4px 10px;
+      background: white;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .pond-detail-content {
+      padding: 16px;
+      max-height: calc(85vh - 200px);
+      overflow-y: auto;
+    }
+    
+    .pond-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+    .pond-detail-name { font-size: 22px; font-weight: bold; }
+    .pond-detail-rating {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 16px;
+      color: #ff9800;
+    }
+    
+    .pond-detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .pond-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .pond-detail-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .pond-stat {
+      background: #f8f8f8;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .pond-stat-value { font-size: 20px; font-weight: bold; color: #1890ff; }
+    .pond-stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+    
+    .pond-fish-report {
+      background: #fff7e6;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .fish-report-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .fish-report-content { font-size: 13px; color: #fa8c16; }
+    
+    .pond-detail-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .pond-fish-tag { padding: 6px 12px; background: rgba(24,144,255,0.1); color: #1890ff; border-radius: 16px; font-size: 13px; }
+    
+    .pond-action-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .pond-action-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .action-primary { background: #1890ff; color: white; }
+    .action-secondary { background: #f5f5f5; color: #333; }
+    
+    .pond-catch-wall {
+      margin-top: 16px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .catch-wall-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .catch-wall-item {
+      aspect-ratio: 1;
+      background: #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .catch-wall-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    /* Wild Point Modal */
+    .wild-point-form {
+      padding: 16px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .form-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      font-size: 14px;
+      resize: none;
+      height: 80px;
+    }
+    .fish-type-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .fish-type-chip {
+      padding: 6px 12px;
+      background: #f5f5f5;
+      border-radius: 16px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .fish-type-chip.selected {
+      background: #1890ff;
+      color: white;
+    }
+    
+    /* Tab Bar */
+    .tab-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      display: flex;
+      padding: 8px 0;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      z-index: 200;
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: #999;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .tab-item.active { color: #1890ff; }
+    .tab-icon { font-size: 22px; }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 9999;
+      animation: toastIn 0.3s ease;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    
+    /* Hide scrollbar */
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+  <div class="map-container">
+    <!-- Weather Bar -->
+    <div class="weather-bar">
+      <span>🌤</span>
+      <span class="weather-item">23°C</span>
+      <span class="weather-divider"></span>
+      <span class="weather-item">东风 3级</span>
+      <span class="weather-divider"></span>
+      <span class="weather-item">气压 1012hPa</span>
+      <span class="weather-divider"></span>
+      <span class="weather-item">钓鱼指数 <span class="fishing-index">★★★★☆</span></span>
+    </div>
+    
+    <!-- Real-time Panel -->
+    <div class="realtime-panel">
+      <div class="realtime-header">
+        <div class="realtime-dot"></div>
+        <span>实时动态</span>
+      </div>
+      <div class="realtime-item" onclick="showToast('查看详情')">
+        <span class="realtime-icon">🐟</span>
+        <span class="realtime-text">张三 黑鱼6.2斤</span>
+        <span class="realtime-tag tag-fish">新上</span>
+      </div>
+      <div class="realtime-item" onclick="showToast('查看赛事')">
+        <span class="realtime-icon">🏆</span>
+        <span class="realtime-text">南郊周赛</span>
+        <span class="realtime-tag tag-contest">剩余1h</span>
+      </div>
+      <div class="realtime-item" onclick="showToast('查看鱼情')">
+        <span class="realtime-icon">📢</span>
+        <span class="realtime-text">龙泉刚补草鱼</span>
+        <span class="realtime-tag tag-report">12:30</span>
+      </div>
+    </div>
+    
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <div class="search-input-wrap">
+        <span>🔍</span>
+        <input type="text" class="search-input" placeholder="搜索鱼塘、鱼种、地区…" id="searchInput">
+      </div>
+      <div class="locate-btn" onclick="locateUser()">📍</div>
+    </div>
+    
+    <!-- Filter Tags -->
+    <div class="filter-tags">
+      <div class="filter-tags-inner">
+        <div class="filter-tag active" onclick="toggleFilter(this, 'nearby')">📍 附近</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'grass')">🐟 草鱼</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'black')">🐟 黑鱼</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'carp')">🐟 鲤鱼</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'bass')">🐟 鲈鱼</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'contest')">🏆 赛事</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'heatmap')">🔥 热力图</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'wild')">🏕️ 野钓点</div>
+        <div class="filter-tag" onclick="toggleFilter(this, 'fresh')">✨ 刚补鱼</div>
+      </div>
+    </div>
+    
+    <!-- Map Area -->
+    <div class="map-area" id="mapArea">
+      <div class="map-placeholder">
+        <span class="map-icon">🗺️</span>
+        <span class="map-text">钓鱼脑地图</span>
+        <span class="map-hint">实时显示鱼塘状态和钓友动态</span>
+      </div>
+      
+      <!-- Markers -->
+      <div id="markersContainer"></div>
+      
+      <!-- Heatmap Overlay -->
+      <div class="heatmap-overlay" id="heatmapOverlay"></div>
+    </div>
+    
+    <!-- Real-time Fish Toast -->
+    <div id="fishToast" style="display: none;"></div>
+    
+    <!-- Add Wild Point Button -->
+    <div class="add-wild-btn" onclick="showWildPointModal()">+</div>
+    
+    <!-- Bottom Sheet -->
+    <div class="bottom-sheet" id="bottomSheet">
+      <div class="sheet-handle" onclick="toggleSheet()"></div>
+      
+      <div class="sheet-tabs">
+        <div class="sheet-tab active" onclick="switchSheetTab(this, 'ponds')">🏠 附近鱼塘</div>
+        <div class="sheet-tab" onclick="switchSheetTab(this, 'ranking')">🏆 今日排行</div>
+        <div class="sheet-tab" onclick="switchSheetTab(this, 'contests')">🎯 进行中赛事</div>
+      </div>
+      
+      <div class="sheet-content" id="sheetContent">
+        <!-- Content rendered here -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab-item active" onclick="showToast('地图页')">
+      <span class="tab-icon">🗺️</span>
+      <span>地图</span>
+    </div>
+    <div class="tab-item" onclick="showToast('信息流')">
+      <span class="tab-icon">📰</span>
+      <span>动态</span>
+    </div>
+    <div class="tab-item" onclick="showToast('发布')">
+      <span class="tab-icon">➕</span>
+      <span>发布</span>
+    </div>
+    <div class="tab-item" onclick="showToast('排行')">
+      <span class="tab-icon">🏆</span>
+      <span>排行</span>
+    </div>
+    <div class="tab-item" onclick="showToast('我的')">
+      <span class="tab-icon">👤</span>
+      <span>我的</span>
+    </div>
+  </div>
+
+  <!-- Pond Detail Modal -->
+  <div class="modal-overlay" id="pondDetailModal">
+    <div class="pond-detail-modal">
+      <div class="modal-handle"></div>
+      <div class="pond-detail-cover" id="pondDetailCover">
+        <img src="" alt="">
+        <div class="pond-cover-badges" id="pondCoverBadges"></div>
+      </div>
+      <div class="pond-detail-content" id="pondDetailContent">
+        <!-- Content rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Wild Point Modal -->
+  <div class="modal-overlay" id="wildPointModal">
+    <div class="pond-detail-modal">
+      <div class="modal-handle" onclick="closeWildPointModal()"></div>
+      <div style="padding: 0 16px;">
+        <h3 style="font-size: 18px; margin-bottom: 16px;">📍 标记野钓点</h3>
+      </div>
+      <div class="wild-point-form">
+        <div class="form-group">
+          <label class="form-label">地点名称</label>
+          <input type="text" class="form-input" placeholder="如：西湖断桥附近">
+        </div>
+        <div class="form-group">
+          <label class="form-label">鱼种（可多选）</label>
+          <div class="fish-type-selector">
+            <span class="fish-type-chip" onclick="toggleFishChip(this)">草鱼</span>
+            <span class="fish-type-chip" onclick="toggleFishChip(this)">鲫鱼</span>
+            <span class="fish-type-chip" onclick="toggleFishChip(this)">鲤鱼</span>
+            <span class="fish-type-chip" onclick="toggleFishChip(this)">黑鱼</span>
+            <span class="fish-type-chip" onclick="toggleFishChip(this)">鲢鳙</span>
+            <span class="fish-type-chip" onclick="toggleFishChip(this)">其他</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">是否免费</label>
+          <div style="display: flex; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+              <input type="radio" name="free" checked> 免费
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+              <input type="radio" name="free"> 收费
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">说明（可选，100字内）</label>
+          <textarea class="form-textarea" placeholder="描述这个野钓点的特点..."></textarea>
+        </div>
+        <div style="padding: 16px; display: flex; gap: 12px;">
+          <div class="pond-action-btn action-secondary" style="flex:1" onclick="closeWildPointModal()">取消</div>
+          <div class="pond-action-btn action-primary" style="flex:1" onclick="submitWildPoint()">提交</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data
+    const ponds = [
+      { id: 1, name: '龙泉黑坑', lat: 30, lng: 120, distance: '3.2km', rating: 4.8, reviews: 236, status: 'hot', currentPeople: 42, fishTypes: ['草鱼', '鲤鱼', '鲫鱼'], price: '计重40元/斤', photo: 'https://picsum.photos/400/200?random=101', reportTime: '12:30', reportText: '补放草鱼200斤，鲤鱼100斤', todayCatches: 87 },
+      { id: 2, name: '黑坑王者钓场', lat: 35, lng: 125, distance: '5.1km', rating: 4.6, reviews: 189, status: 'contest', currentPeople: 28, fishTypes: ['黑鱼', '鲈鱼'], price: '包天200元', photo: 'https://picsum.photos/400/200?random=102', contest: '春季钓鱼大赛', todayCatches: 45 },
+      { id: 3, name: '野钓-西湖', lat: 25, lng: 118, distance: '8km', rating: 4.3, reviews: 87, status: 'fresh', currentPeople: 15, fishTypes: ['鲫鱼', '鲤鱼'], price: '免费', photo: 'https://picsum.photos/400/200?random=103', reportTime: '10:30', reportText: '早上口不错，鲫鱼连杆', todayCatches: 23 },
+      { id: 4, name: '顺义鱼塘', lat: 40, lng: 130, distance: '12km', rating: 4.5, reviews: 156, status: 'normal', currentPeople: 8, fishTypes: ['青鱼', '草鱼'], price: '计重30元/斤', photo: 'https://picsum.photos/400/200?random=104', todayCatches: 12 },
+    ];
+    
+    const recentCatches = [
+      { id: 1, user: '李大钓', pond: '龙泉黑坑', fish: '草鱼', weight: 9.8, time: '刚刚' },
+      { id: 2, user: '王二钓', pond: '黑坑王者钓场', fish: '黑鱼', weight: 12.5, time: '3分钟前' },
+      { id: 3, user: '张三钓', pond: '野钓-西湖', fish: '鲫鱼', weight: 0.8, time: '5分钟前' },
+    ];
+    
+    const rankings = [
+      { rank: 1, medal: '🥇', name: '李钓神', fish: '黑鱼', weight: 18.5, unit: '斤', pond: '黑坑王者' },
+      { rank: 2, medal: '🥈', name: '张大钓', fish: '草鱼', weight: 15.2, unit: '斤', pond: '龙泉黑坑' },
+      { rank: 3, medal: '🥉', name: '王老竿', fish: '青鱼', weight: 12.8, unit: '斤', pond: '顺义鱼塘' },
+    ];
+    
+    const contests = [
+      { id: 1, title: '龙泉黑坑杯·春季赛', pond: '龙泉黑坑', participants: 45, maxParticipants: 60, timeLeft: '2天', entry: '50元' },
+      { id: 2, title: '黑坑王者·路亚赛', pond: '黑坑王者钓场', participants: 28, maxParticipants: 30, timeLeft: '今天', entry: '100元' },
+    ];
+    
+    let selectedPondId = null;
+    let sheetExpanded = false;
+    let currentSheetTab = 'ponds';
+    let heatmapVisible = false;
+    
+    // Initialize
+    function init() {
+      renderMarkers();
+      renderSheetPonds();
+      startFishToastLoop();
+    }
+    
+    // Render Markers
+    function renderMarkers() {
+      const container = document.getElementById('markersContainer');
+      
+      container.innerHTML = ponds.map(pond => {
+        const x = 50 + (pond.id * 60) % 200;
+        const y = 100 + (pond.id * 80) % 200;
+        
+        let icon, labelClass, statusText;
+        switch(pond.status) {
+          case 'hot':
+            icon = '🔥';
+            labelClass = 'hot';
+            statusText = `${pond.currentPeople}人`;
+            break;
+          case 'contest':
+            icon = '🏆';
+            labelClass = 'contest';
+            statusText = '赛事中';
+            break;
+          case 'fresh':
+            icon = '✨';
+            labelClass = 'fresh';
+            statusText = '刚补鱼';
+            break;
+          case 'wild':
+            icon = '🏕️';
+            labelClass = 'wild';
+            statusText = '野钓';
+            break;
+          default:
+            icon = '🎣';
+            labelClass = 'normal';
+            statusText = pond.distance;
+        }
+        
+        return `
+          <div class="marker" style="left: ${x}px; top: ${y}px;" onclick="selectPond(${pond.id})">
+            <div class="marker-icon">${icon}</div>
+            <div class="marker-label ${labelClass}">${pond.name} · ${statusText}</div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Select Pond
+    function selectPond(id) {
+      selectedPondId = id;
+      const pond = ponds.find(p => p.id === id);
+      showPondDetail(pond);
+    }
+    
+    // Show Pond Detail
+    function showPondDetail(pond) {
+      // Update cover
+      document.getElementById('pondDetailCover').querySelector('img').src = pond.photo;
+      
+      // Badges
+      let badgesHtml = '';
+      if (pond.status === 'hot') badgesHtml += '<span class="cover-badge" style="background:#E24B4A;color:white">🔥 超热闹</span>';
+      if (pond.status === 'contest') badgesHtml += '<span class="cover-badge" style="background:#7F77DD;color:white">🏆 赛事中</span>';
+      if (pond.status === 'fresh') badgesHtml += '<span class="cover-badge" style="background:#1D9E75;color:white">✨ 刚补鱼</span>';
+      document.getElementById('pondCoverBadges').innerHTML = badgesHtml;
+      
+      // Content
+      let reportHtml = '';
+      if (pond.reportText) {
+        reportHtml = `
+          <div class="pond-fish-report">
+            <div class="fish-report-title">📢 今日鱼情 <span style="font-size:11px;color:#999;font-weight:normal">${pond.reportTime}</span></div>
+            <div class="fish-report-content">${pond.reportText}</div>
+          </div>
+        `;
+      }
+      
+      const content = `
+        <div class="pond-detail-header">
+          <div class="pond-detail-name">${pond.name}</div>
+          <div class="pond-detail-rating">⭐ ${pond.rating} <span style="color:#999;font-size:13px">(${pond.reviews})</span></div>
+        </div>
+        
+        <div class="pond-detail-meta">
+          <div class="pond-meta-item">📍 ${pond.distance}</div>
+          <div class="pond-meta-item">💰 ${pond.price}</div>
+          <div class="pond-meta-item">⏰ 06:00-22:00</div>
+        </div>
+        
+        <div class="pond-detail-stats">
+          <div class="pond-stat">
+            <div class="pond-stat-value">${pond.currentPeople}</div>
+            <div class="pond-stat-label">在钓人数</div>
+          </div>
+          <div class="pond-stat">
+            <div class="pond-stat-value">${pond.todayCatches}</div>
+            <div class="pond-stat-label">今日上鱼</div>
+          </div>
+          <div class="pond-stat">
+            <div class="pond-stat-value">⭐${pond.rating}</div>
+            <div class="pond-stat-label">评分</div>
+          </div>
+        </div>
+        
+        ${reportHtml}
+        
+        <div class="pond-detail-tags">
+          ${pond.fishTypes.map(f => `<span class="pond-fish-tag">🐟 ${f}</span>`).join('')}
+        </div>
+        
+        <div class="pond-action-bar">
+          <div class="pond-action-btn action-primary" onclick="showToast('拨打电话')">📞 电话</div>
+          <div class="pond-action-btn action-secondary" onclick="showToast('导航功能')">🧭 导航</div>
+          <div class="pond-action-btn action-secondary" onclick="showToast('收藏功能')">⭐ 收藏</div>
+        </div>
+        
+        <div class="pond-catch-wall">
+          <div class="section-title">📸 本塘战绩墙</div>
+          <div class="catch-wall-grid">
+            <div class="catch-wall-item"><img src="https://picsum.photos/100/100?random=201"></div>
+            <div class="catch-wall-item"><img src="https://picsum.photos/100/100?random=202"></div>
+            <div class="catch-wall-item"><img src="https://picsum.photos/100/100?random=203"></div>
+            <div class="catch-wall-item"><img src="https://picsum.photos/100/100?random=204"></div>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('pondDetailContent').innerHTML = content;
+      document.getElementById('pondDetailModal').classList.add('active');
+    }
+    
+    // Close Pond Detail
+    function closePondDetail() {
+      document.getElementById('pondDetailModal').classList.remove('active');
+    }
+    
+    // Toggle Filter
+    function toggleFilter(el, type) {
+      el.classList.toggle('active');
+      
+      if (type === 'heatmap') {
+        heatmapVisible = !heatmapVisible;
+        toggleHeatmap();
+      }
+      
+      showToast(`已切换: ${el.textContent.trim()}`);
+    }
+    
+    // Toggle Heatmap
+    function toggleHeatmap() {
+      const overlay = document.getElementById('heatmapOverlay');
+      if (heatmapVisible) {
+        overlay.innerHTML = ponds.map(pond => {
+          const x = 50 + (pond.id * 60) % 200;
+          const y = 100 + (pond.id * 80) % 200;
+          const size = pond.currentPeople * 2;
+          const opacity = Math.min(pond.currentPeople / 60, 0.4);
+          const color = pond.status === 'hot' ? 'rgba(226,75,74,' : 'rgba(24,144,255,';
+          return `<div class="heat-spot" style="left:${x}px;top:${y}px;width:${size}px;height:${size}px;background:${color}${opacity})"></div>`;
+        }).join('');
+      } else {
+        overlay.innerHTML = '';
+      }
+    }
+    
+    // Toggle Bottom Sheet
+    function toggleSheet() {
+      sheetExpanded = !sheetExpanded;
+      document.getElementById('bottomSheet').classList.toggle('sheet-expanded', sheetExpanded);
+    }
+    
+    // Switch Sheet Tab
+    function switchSheetTab(el, tab) {
+      document.querySelectorAll('.sheet-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      currentSheetTab = tab;
+      
+      switch(tab) {
+        case 'ponds': renderSheetPonds(); break;
+        case 'ranking': renderSheetRanking(); break;
+        case 'contests': renderSheetContests(); break;
+      }
+    }
+    
+    // Render Sheet Ponds
+    function renderSheetPonds() {
+      const content = document.getElementById('sheetContent');
+      content.innerHTML = ponds.map(pond => {
+        let statusHtml = '';
+        switch(pond.status) {
+          case 'hot':
+            statusHtml = `<span class="sheet-pond-status status-hot">🔥 ${pond.currentPeople}人在钓</span>`;
+            break;
+          case 'fresh':
+            statusHtml = `<span class="sheet-pond-status status-fresh">✨ 刚补鱼</span>`;
+            break;
+          case 'contest':
+            statusHtml = `<span class="sheet-pond-status status-contest">🏆 ${pond.contest || '赛事中'}</span>`;
+            break;
+        }
+        
+        return `
+          <div class="sheet-pond-card ${selectedPondId === pond.id ? 'selected' : ''}" onclick="selectPond(${pond.id})">
+            <img src="${pond.photo}" class="sheet-pond-img">
+            <div class="sheet-pond-info">
+              <div class="sheet-pond-name">${pond.name} ⭐${pond.rating}</div>
+              <div class="sheet-pond-meta">📍 ${pond.distance} · ${pond.price}</div>
+              <div class="sheet-pond-tags">
+                ${pond.fishTypes.map(f => `<span class="sheet-pond-tag">🐟 ${f}</span>`).join('')}
+              </div>
+            </div>
+            ${statusHtml}
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Render Sheet Ranking
+    function renderSheetRanking() {
+      const content = document.getElementById('sheetContent');
+      content.innerHTML = rankings.map(r => `
+        <div class="rank-list-item">
+          <div class="rank-medal">${r.medal}</div>
+          <div style="flex: 1; margin-left: 8px;">
+            <div class="rank-name">${r.name}</div>
+            <div class="rank-fish">🐟 ${r.fish} ${r.weight}${r.unit}</div>
+            <div class="rank-pond">📍 ${r.pond}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Render Sheet Contests
+    function renderSheetContests() {
+      const content = document.getElementById('sheetContent');
+      content.innerHTML = contests.map(c => {
+        const progress = (c.participants / c.maxParticipants) * 100;
+        return `
+          <div class="contest-item">
+            <div class="contest-title">🏆 ${c.title}</div>
+            <div class="contest-meta">📍 ${c.pond} · 报名费: ${c.entry}</div>
+            <div class="contest-progress">
+              <div class="contest-progress-bar" style="width: ${progress}%"></div>
+            </div>
+            <div class="contest-time-left">剩余 ${c.maxParticipants - c.participants} 名 · ${c.timeLeft}截止</div>
+            <div class="contest-signup" onclick="showToast('报名赛事')">立即报名</div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Locate User
+    function locateUser() {
+      showToast('正在定位...');
+      setTimeout(() => showToast('定位成功 📍'), 1000);
+    }
+    
+    // Wild Point Modal
+    function showWildPointModal() {
+      document.getElementById('wildPointModal').classList.add('active');
+    }
+    
+    function closeWildPointModal() {
+      document.getElementById('wildPointModal').classList.remove('active');
+    }
+    
+    function toggleFishChip(el) {
+      el.classList.toggle('selected');
+    }
+    
+    function submitWildPoint() {
+      showToast('野钓点已提交！');
+      closeWildPointModal();
+    }
+    
+    // Fish Toast Loop
+    let toastIndex = 0;
+    function startFishToastLoop() {
+      showFishToast();
+      setInterval(() => {
+        if (Math.random() > 0.5) {
+          showFishToast();
+        }
+      }, 8000);
+    }
+    
+    function showFishToast() {
+      const catchData = recentCatches[toastIndex % recentCatches.length];
+      toastIndex++;
+      
+      const toast = document.getElementById('fishToast');
+      toast.innerHTML = `
+        <div class="toast-header">
+          <span>🎣</span>
+          <span>${catchData.pond}</span>
+          <span>${catchData.user}</span>
+        </div>
+        <div class="toast-fish">${catchData.fish} ${catchData.weight}斤</div>
+        <div class="toast-pond">${catchData.time}</div>
+      `;
+      toast.style.display = 'block';
+      
+      toast.style.animation = 'none';
+      toast.offsetHeight;
+      toast.style.animation = 'slideUp 0.4s ease, fadeOut 0.4s ease 3.6s forwards';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 4000);
+    }
+    
+    // Show Toast
+    function showToast(message) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.remove(), 2000);
+    }
+    
+    // Search Input Handler
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        showToast(`搜索: ${this.value}`);
+        this.value = '';
+      }
+    });
+    
+    // Close modals on overlay click
+    document.getElementById('pondDetailModal').addEventListener('click', function(e) {
+      if (e.target === this) closePondDetail();
+    });
+    document.getElementById('wildPointModal').addEventListener('click', function(e) {
+      if (e.target === this) closeWildPointModal();
+    });
+    
+    // Init
+    init();
+  </script>
+</body>
+</html>
