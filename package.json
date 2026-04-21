@@ -1,0 +1,35 @@
+{
+  "name": "fishing-mind-taro",
+  "version": "1.0.0",
+  "description": "钓鱼脑 - 中国钓鱼人的战绩系统",
+  "template": "mobx",
+  "scripts": {
+    "dev:weapp": "taro build --type weapp --watch",
+    "dev:h5": "taro build --type h5 --watch",
+    "build:weapp": "taro build --type weapp",
+    "build:h5": "taro build --type h5",
+    "dev": "npm run dev:h5",
+    "build": "npm run build:h5"
+  },
+  "browserslist": [
+    "React >= 18.0.0"
+  ],
+  "dependencies": {
+    "@tarojs/components": "^4.0.0",
+    "@tarojs/plugin-framework-react": "^4.0.0",
+    "@tarojs/react": "^4.0.0",
+    "@tarojs/runtime": "^4.0.0",
+    "@tarojs/taro": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "taro-ui": "^3.1.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@tarojs/webpack5-runner": "^4.0.0",
+    "@types/react": "^18.2.0",
+    "babel-preset-taro": "^4.0.0",
+    "typescript": "^5.3.0",
+    "webpack": "^5.0.0"
+  }
+}
